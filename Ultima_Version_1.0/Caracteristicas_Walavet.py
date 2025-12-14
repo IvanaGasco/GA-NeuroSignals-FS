@@ -52,7 +52,7 @@ def Wavelet(signals, mother, fs=512, nperseg=512):
     return wavelet_values
 
 #(EXTRAIDA DE "Wavelet_T1_volunteers.py")
-def cross_valid_svm(X, y, n_repeats=10): # <-- ¡Ahora acepta n_repeats!
+def cross_valid_svm(X, y, n_repeats=10): 
     # 1. Búsqueda de los mejores hiperparámetros C y gamma (GridSearch)
     svm = SVC(kernel='rbf', random_state=42)
     param_grid = {'C': [0.1, 1, 10, 100], 'gamma': [0.001, 0.01, 0.1, 1, 'scale', 'auto']}
@@ -62,7 +62,7 @@ def cross_valid_svm(X, y, n_repeats=10): # <-- ¡Ahora acepta n_repeats!
     clf = grid_search.best_estimator_
     
     # 2. Evaluación final con Repeated Stratified K-Fold 
-    # Usa el parámetro n_repeats que se le pase (10 por defecto para la Línea Base)
+    # Usa el parámetro n_repeats
     cv_final = RepeatedStratifiedKFold(n_splits=4, n_repeats=n_repeats, random_state=42)
     
     acc_scores = cross_val_score(clf, X, y, cv=cv_final, scoring='accuracy', n_jobs=-1) 
