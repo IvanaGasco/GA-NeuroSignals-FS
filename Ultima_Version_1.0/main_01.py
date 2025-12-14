@@ -37,7 +37,7 @@ def ejecutar_ag():
     # SELECCIÓN INTERACTIVA DE PARTICIPANTES 
     # --------------------------------------------------------------------------
     
-    # 1. Obtener IDs disponibles y crear un mapa para fácil acceso
+    # 1. Obtener IDs disponibles 
     available_ids = [p['id'] for p in data_participantes_all]
     available_ids_sorted = sorted(available_ids)
     id_map = {p['id']: p for p in data_participantes_all}
