@@ -45,7 +45,7 @@ def Wavelet(signals, mother, fs=512, nperseg=512):
     for trial in range(trials):
         # Se utiliza level=5 para obtener cD5 y cD4 (banda 8-30 Hz)
         cA5,cD5,cD4,cD3,cD2,cD1 = pywt.wavedec(signals[trial], mother, mode='periodization',level=5)
-        # Concatenación: 20 (D5) + 2* 38 (D4) = 96 coeficientes reales???
+        # Concatenación: 20 (D5) + 2* 38 (D4) = 96 coeficientes reales
         wavelet_values.append(np.concatenate((cD5,cD4))) 
 
     wavelet_values = np.array(wavelet_values)
