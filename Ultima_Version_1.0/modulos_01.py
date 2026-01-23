@@ -1,140 +1,64 @@
 import numpy as np
 import pandas as pd
 import os
-from Caracteristicas_Walavet import cross_valid_svm
-
-# --- Módulos de Clasificación para Fitness (requeridos por cross_valid_svm) ---
+from sklearn.model_selection import GridSearchCV, cross_val_score, RepeatedStratifiedKFold
 from sklearn.svm import SVC
-from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold, cross_val_score 
+from collections import defaultdict 
+from sklearn.svm import SVC
+from sklearn.model_selection import cross_val_score 
 
-# --- CARPETA DONDE SE ESPERAN LOS CSV GENERADOS ---
 CSV_FOLDER = "CARACTERISTICAS_CSV" 
 
-# ====================================
-# === 1. MÓDULO DE FUNCIÓN DE FITNESS
-# ====================================
+def cargar_datos_por_participante():
+    data_participantes = []
+    if not os.path.exists(CSV_FOLDER):
+        raise FileNotFoundError(f"Carpeta {CSV_FOLDER} no encontrada.")
+        
+    for filename in [f for f in os.listdir(CSV_FOLDER) if f.endswith('.csv')]:
+        df = pd.read_csv(os.path.join(CSV_FOLDER, filename))
+        X = df.iloc[:, :-1].values.astype(np.float64) 
+        y = df['Label'].values.astype(np.int64)
+        pid = filename.split('_')[3]
+        data_participantes.append({'id': pid, 'X': X, 'y': y, 'N_features': X.shape[1]})
+    return data_participantes
+
+#Validación cruzada SVM (más adelante puedo aplicar herencia y polimorfismo con LDA y demas clasificadores)
+def cross_valid_svm(X, y, n_repeats=10):
+    svm = SVC(kernel='rbf', random_state=42)
+    param_grid = {'C': [0.1, 1, 10, 100], 'gamma': [0.001, 0.01, 0.1, 1, 'scale', 'auto']}
+    grid_search = GridSearchCV(estimator=svm, param_grid=param_grid, cv=4, scoring='accuracy', n_jobs=-1) 
+    grid_search.fit(X, y)
+    clf = grid_search.best_estimator_
+    
+    cv_final = RepeatedStratifiedKFold(n_splits=4, n_repeats=n_repeats, random_state=42)
+    acc_scores = cross_val_score(clf, X, y, cv=cv_final, scoring='accuracy', n_jobs=-1) 
+    tpr_scores = cross_val_score(clf, X, y, cv=cv_final, scoring='recall')
+    return (np.mean(acc_scores), np.std(acc_scores), np.mean(tpr_scores), np.std(tpr_scores), clf)
+
 
 def crear_funcion_fitness(X_data_participante, y_labels_participante, num_caracteristicas_totales, weight_factor):
-    """
-    Crea la función de fitness (closure) para un PARTICIPANTE específico.
-    """
-    
     def funcion_fitness_svm_cv(ga_instance, solution, solution_idx):
-        # 'solution' es el genotipo (vector de 0s y 1s)
+        indices = np.where(solution == 1)[0]
         
-        # 1. Definición de caracteristicas_seleccionadas_idx
-        caracteristicas_seleccionadas_idx = np.where(solution == 1)[0]
+        # SEGURIDAD: El SVM requiere al menos 2 características para ser estable
+        if len(indices) < 2:
+            return 0.0001 
         
-        if len(caracteristicas_seleccionadas_idx) == 0:
-            # Penalización máxima por no seleccionar nada
-            return -1.0 
-
+        X_sub = X_data_participante[:, indices]
         
-        # PASO 1: DEFINICIÓN DE X_subconjunto
-        # Filtra la matriz de datos original (X_data_participante) para incluir SÓLO las columnas (características)
-        # donde el valor de 'solution' (el genotipo) es 1.
-        X_subconjunto = X_data_participante[:, caracteristicas_seleccionadas_idx]
+        # Evaluación rápida para el AG (n_repeats bajo para velocidad)
+        precision_media_cv, _, _, _, _ = cross_valid_svm(X_sub, y_labels_participante, n_repeats=2)
         
-        # PASO 2: Evaluación con SVM (obteniendo la precisión)
-        # Llama a la función de clasificación con el subconjunto de datos.
-        # cross_valid_svm_AG debe retornar (acc_mean, acc_std, tpr_mean, tpr_std)
-        precision_media_cv, _, _, _,_ = cross_valid_svm(
-            X_subconjunto, 
-            y_labels_participante
-        )
-        
-        # PASO 3: Cálculo de la Penalización
-        num_caracteristicas_usadas = len(caracteristicas_seleccionadas_idx)
-        # weight_factor y num_caracteristicas_totales se usan desde el scope exterior (closure)
-        penalizacion = (num_caracteristicas_usadas / num_caracteristicas_totales) * weight_factor
-        
-        # PASO 4: DEFINICIÓN DE fitness_final
-        # Aplica la fórmula: Fitness = Precisión - Penalización.
-        fitness_final = precision_media_cv - penalizacion
-        
-        return fitness_final 
+        penalizacion = (len(indices) / num_caracteristicas_totales) * weight_factor
+        return precision_media_cv - penalizacion
     
     return funcion_fitness_svm_cv
 
-# ==============================================
-# === 2. MÓDULO DE CARGA Y PREPARACIÓN DE DATOS 
-# ==============================================
-
-def cargar_datos_por_participante():
-    """
-    Busca y carga todas las matrices de características binarias (80x96) 
-    de la carpeta CSV_FOLDER, una por participante.
-    
-    Retorna una lista de diccionarios con los datos (X, y) de cada matriz.
-    """
-    data_participantes = []
-    
-    if not os.path.exists(CSV_FOLDER):
-        raise FileNotFoundError(f"Error: La carpeta '{CSV_FOLDER}' no fue encontrada. Asegúrese de ejecutar 'Caracteristicas_Walavet.py' primero.")
-        
-    feature_files = [f for f in os.listdir(CSV_FOLDER) if f.endswith('.csv')]
-
-    if not feature_files:
-        raise FileNotFoundError(f"Error: No se encontraron archivos CSV binarios en '{CSV_FOLDER}'.")
-
-    for filename in feature_files:
-        filepath = os.path.join(CSV_FOLDER, filename)
-        
-        try:
-            df = pd.read_csv(filepath)
-            
-            # X_data: Todas las columnas excepto la última ('Label')
-            X_data = df.iloc[:, :-1].values.astype(np.float64) 
-
-            # Y_labels: La última columna ('Label')
-            Y_labels = df['Label'].values.astype(np.int64)
-
-            # Extraemos el ID del participante
-            participante_id_match = filename.split('_')[3] if len(filename.split('_')) > 3 else filename.split('.')[0]
-            
-            data_participantes.append({
-                'id': participante_id_match,
-                'filename': filename,
-                'X': X_data,
-                'y': Y_labels,
-                'N_features': X_data.shape[1]
-            })
-
-            print(f"Cargado: {participante_id_match} | Shape X: {X_data.shape}, Shape y: {Y_labels.shape}")
-
-        except Exception as e:
-            print(f"Advertencia: No se pudo cargar o procesar el archivo {filename}. Error: {e}")
-            continue
-
-    if not data_participantes:
-         raise ValueError("Error: No se pudo cargar ninguna matriz de características.")
-
-    return data_participantes
-
-# =================================================
-# === 3. MÓDULO DE MONITOREO 
-# =================================================
 
 def crear_callback_monitoreo(weight_factor):
-    def on_generation_callback(ga_instance):
-        """Función de monitoreo ejecutada después de cada generación."""
-        
+    def on_generation(ga_instance):
         gen = ga_instance.generations_completed
-        best_solution, best_fitness, _ = ga_instance.best_solution()
-        num_caracteristicas_totales = ga_instance.num_genes
-        
-        num_caracteristicas_seleccionadas = np.sum(best_solution)
-
-        if num_caracteristicas_seleccionadas > 0:
-            penalizacion = (num_caracteristicas_seleccionadas / num_caracteristicas_totales) * weight_factor
-            precision_estimada = best_fitness + penalizacion
-        else:
-            precision_estimada = 0.0
-
-        if gen % 20 == 0 or gen == 1:
-            print("--------------------------------------------------")
-            print(f"Generación: {gen:02d} | Fitness Final (con penal.): {best_fitness:.4f}")
-            print(f"  Precisión CV Estimada: {precision_estimada:.4f}")
-            print(f"  Características usadas: {num_caracteristicas_seleccionadas}/{num_caracteristicas_totales}")
-
-    return on_generation_callback
+        if gen % 10 == 0 or gen == 1:
+            _, fit, _ = ga_instance.best_solution()
+            print(f"Generación {gen}: Mejor Fitness = {fit:.4f}")
+    return on_generation
