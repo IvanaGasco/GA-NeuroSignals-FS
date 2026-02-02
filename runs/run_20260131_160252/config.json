@@ -1,0 +1,12 @@
+{
+    "algoritmo": "Gen\u00e9tico (PyGAD)",
+    "clasificador": "SVM (Linear)",
+    "extraccion": "Wavelets bior4.4",
+    "params_ag": {
+        "sol_per_pop": 70,
+        "num_generations": 50,
+        "mutation_percent": 10,
+        "weight_factor": 0.5
+    },
+    "fecha": "2026-01-31 16:02:52.762982"
+}

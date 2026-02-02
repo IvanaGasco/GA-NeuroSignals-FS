@@ -1,0 +1,2 @@
+Fecha_Hora,Participante,Fitness,Num_Features,Indices,Algoritmo,Sol_per_Pop,Num_Generations,Mutation_Pct,Weight_Factor
+2026-01-28 12:42:57,S01,0.7559,30,"3,6,10,12,13,14,16,20,22,27,28,38,43,45,46,47,50,58,62,67,68,71,73,74,78,80,83,85,90,92",Genético (PyGAD),70,50,10,0.5

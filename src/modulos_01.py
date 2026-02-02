@@ -8,16 +8,16 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 
-CSV_FOLDER = "CARACTERISTICAS_CSV" 
+CSV_FOLDER = "data/processed/CARACTERISTICAS_CSV" 
 
 #######################################################################################
 
 def cargar_datos_por_participante():
     data_participantes = []
 
-    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    CSV_FOLDER = os.path.join(SCRIPT_DIR, "CARACTERISTICAS_CSV")
+    CSV_FOLDER = os.path.join(base_path, "data", "processed", "CARACTERISTICAS_CSV")
 
     print(f"Buscando en: {CSV_FOLDER}")
 
